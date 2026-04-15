@@ -1,0 +1,16 @@
+server:
+  port: 8099
+
+spring:
+  application:
+    name: spring-ai-demo
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-X91RTOfvynfZLCiQ1J2QL8jqOmvQ23nPAKtB7Dsucv8fa7Yu}
+      base-url: http://192.168.40.113:8088
+      chat:
+        options:
+          model: MiniMax-M2.7-highspeed
+          temperature: 0.7
+          max-tokens: 1000

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AI Chat Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-section label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .input-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.3s;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd6;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #48c6ef;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #3db8e0;
+            transform: translateY(-2px);
+        }
+
+        .btn-stream {
+            background: #f093fb;
+            color: white;
+        }
+
+        .btn-stream:hover {
+            background: #e082ea;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-clear {
+            background: #ff6b6b;
+            color: white;
+            flex: 0.5;
+            min-width: 80px;
+        }
+
+        .btn-clear:hover {
+            background: #ee5a5a;
+        }
+
+        .response-section {
+            margin-top: 20px;
+        }
+
+        .response-section label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .response-box {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .response-box.json {
+            color: #333;
+        }
+
+        .response-box.streaming {
+            background: #fff3e0;
+            border-color: #ffcc80;
+        }
+
+        .status-bar {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .status-bar.idle {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-bar.loading {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-bar.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .api-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .api-info h3 {
+            color: #1565c0;
+            margin-bottom: 10px;
+        }
+
+        .api-info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .api-info li {
+            margin: 8px 0;
+            color: #555;
+        }
+
+        .api-info code {
+            background: #bbdefb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Spring AI Chat Demo</h1>
+
+        <div class="input-section">
+            <label for="messageInput">输入消息：</label>
+            <textarea id="messageInput" placeholder="请输入您的问题...">你好，请介绍一下自己</textarea>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-primary" id="btnPost" onclick="sendPostRequest()">
+                POST 完整响应
+            </button>
+            <button class="btn btn-secondary" id="btnGet" onclick="sendGetRequest()">
+                GET 简单响应
+            </button>
+            <button class="btn btn-stream" id="btnStream" onclick="sendStreamRequest()">
+                GET 流式响应
+            </button>
+            <button class="btn btn-clear" onclick="clearResponse()">
+                清空
+            </button>
+        </div>
+
+        <div class="status-bar idle" id="statusBar">
+            状态：就绪
+        </div>
+
+        <div class="response-section">
+            <label for="responseBox">响应结果：</label>
+            <div class="response-box" id="responseBox">等待请求...</div>
+        </div>
+
+        <div class="api-info">
+            <h3>接口说明</h3>
+            <ul>
+                <li><strong>POST 完整响应</strong> - <code>POST /api/chat</code> 返回 JSON（含模型信息、token数）</li>
+                <li><strong>GET 简单响应</strong> - <code>GET /api/chat?message=xxx</code> 返回纯文本</li>
+                <li><strong>GET 流式响应</strong> - <code>GET /api/chat/stream?message=xxx</code> SSE 实时推送</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const messageInput = document.getElementById('messageInput');
+        const responseBox = document.getElementById('responseBox');
+        const statusBar = document.getElementById('statusBar');
+        const buttons = ['btnPost', 'btnGet', 'btnStream'];
+
+        function setButtonsDisabled(disabled) {
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = disabled;
+            });
+        }
+
+        function setStatus(text, type) {
+            statusBar.textContent = '状态：' + text;
+            statusBar.className = 'status-bar ' + type;
+        }
+
+        function clearResponse() {
+            responseBox.textContent = '';
+            responseBox.className = 'response-box';
+            setStatus('就绪', 'idle');
+        }
+
+        async function sendPostRequest() {
+            const message = messageInput.value.trim();
+            if (!message) {
+                alert('请输入消息');
+                return;
+            }
+
+            setButtonsDisabled(true);
+            setStatus('请求中...', 'loading');
+            responseBox.textContent = '正在请求...';
+            responseBox.className = 'response-box json';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error('请求失败: ' + response.status);
+                }
+
+                const data = await response.json();
+                responseBox.textContent = JSON.stringify(data, null, 2);
+                setStatus('完成', 'idle');
+            } catch (error) {
+                responseBox.textContent = '错误: ' + error.message;
+                setStatus('错误', 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function sendGetRequest() {
+            const message = messageInput.value.trim();
+            if (!message) {
+                alert('请输入消息');
+                return;
+            }
+
+            setButtonsDisabled(true);
+            setStatus('请求中...', 'loading');
+            responseBox.textContent = '正在请求...';
+            responseBox.className = 'response-box';
+
+            try {
+                const response = await fetch('/api/chat?message=' + encodeURIComponent(message));
+
+                if (!response.ok) {
+                    throw new Error('请求失败: ' + response.status);
+                }
+
+                const text = await response.text();
+                responseBox.textContent = text;
+                setStatus('完成', 'idle');
+            } catch (error) {
+                responseBox.textContent = '错误: ' + error.message;
+                setStatus('错误', 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        function sendStreamRequest() {
+            const message = messageInput.value.trim();
+            if (!message) {
+                alert('请输入消息');
+                return;
+            }
+
+            setButtonsDisabled(true);
+            setStatus('流式请求中...', 'loading');
+            responseBox.textContent = '';
+            responseBox.className = 'response-box streaming';
+
+            const url = '/api/chat/stream?message=' + encodeURIComponent(message);
+            console.log('开始流式请求: ' + url);
+
+            const eventSource = new EventSource(url);
+
+            eventSource.onopen = function(event) {
+                console.log('EventSource 连接已打开');
+                setStatus('流式连接已建立', 'loading');
+            };
+
+            eventSource.onmessage = function(event) {
+                console.log('收到消息: ' + event.data);
+                if (event.data === '[DONE]') {
+                    eventSource.close();
+                    setStatus('流式完成', 'idle');
+                    setButtonsDisabled(false);
+                    return;
+                }
+                responseBox.textContent += event.data;
+                // 自动滚动到底部
+                responseBox.scrollTop = responseBox.scrollHeight;
+            };
+
+            eventSource.onerror = function(event) {
+                console.log('EventSource 错误: ', event);
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    setStatus('流式完成', 'idle');
+                    console.log('EventSource 已关闭');
+                } else {
+                    responseBox.textContent += '\n[连接错误]';
+                    setStatus('错误', 'error');
+                    console.log('EventSource 连接错误');
+                }
+                eventSource.close();
+                setButtonsDisabled(false);
+            };
+        }
+    </script>
+</body>
+</html>
