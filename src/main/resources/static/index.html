@@ -25,34 +25,133 @@
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 30px;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
         }
 
         h1 {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             font-size: 28px;
         }
 
-        .input-section {
-            margin-bottom: 20px;
+        .session-info {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-radius: 8px;
         }
 
-        .input-section label {
-            display: block;
-            font-weight: 600;
-            color: #555;
+        .session-id {
+            font-size: 12px;
+            color: #666;
             margin-bottom: 8px;
         }
 
+        .session-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn-session {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-new-session {
+            background: #f093fb;
+            color: white;
+        }
+
+        .btn-new-session:hover {
+            background: #e082ea;
+        }
+
+        .btn-history {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-history:hover {
+            background: #5a6fd6;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .history-section {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .history-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .message-item {
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message-item.user {
+            background: #667eea;
+            color: white;
+            margin-left: 60px;
+        }
+
+        .message-item.assistant {
+            background: #f0f0f0;
+            color: #333;
+            margin-right: 60px;
+        }
+
+        .message-item .sender {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+
+        .message-item.user .sender {
+            text-align: right;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
         .input-section textarea {
-            width: 100%;
+            flex: 1;
             padding: 12px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 14px;
-            resize: vertical;
-            min-height: 80px;
+            resize: none;
+            min-height: 60px;
+            max-height: 120px;
             transition: border-color 0.3s;
         }
 
@@ -63,41 +162,18 @@
 
         .button-group {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 12px 20px;
             border: none;
             border-radius: 8px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            flex: 1;
-            min-width: 120px;
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #5a6fd6;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: #48c6ef;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #3db8e0;
-            transform: translateY(-2px);
+            white-space: nowrap;
         }
 
         .btn-stream {
@@ -107,64 +183,25 @@
 
         .btn-stream:hover {
             background: #e082ea;
-            transform: translateY(-2px);
         }
 
         .btn:disabled {
             background: #ccc;
             cursor: not-allowed;
-            transform: none;
         }
 
         .btn-clear {
             background: #ff6b6b;
             color: white;
-            flex: 0.5;
-            min-width: 80px;
         }
 
         .btn-clear:hover {
             background: #ee5a5a;
         }
 
-        .response-section {
-            margin-top: 20px;
-        }
-
-        .response-section label {
-            display: block;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 8px;
-        }
-
-        .response-box {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-            min-height: 200px;
-            max-height: 400px;
-            overflow-y: auto;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .response-box.json {
-            color: #333;
-        }
-
-        .response-box.streaming {
-            background: #fff3e0;
-            border-color: #ffcc80;
-        }
-
         .status-bar {
-            margin-top: 15px;
-            padding: 10px;
+            margin-top: 10px;
+            padding: 8px;
             border-radius: 8px;
             font-size: 12px;
             text-align: center;
@@ -185,90 +222,145 @@
             color: #c62828;
         }
 
-        .api-info {
-            margin-top: 20px;
-            padding: 15px;
-            background: #e3f2fd;
-            border-radius: 8px;
-            font-size: 13px;
+        .typing-indicator {
+            display: none;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: #f0f0f0;
+            color: #666;
+            font-size: 14px;
         }
 
-        .api-info h3 {
-            color: #1565c0;
-            margin-bottom: 10px;
+        .typing-indicator.active {
+            display: block;
         }
 
-        .api-info ul {
-            list-style: none;
-            padding-left: 0;
+        .typing-dots {
+            display: inline-block;
         }
 
-        .api-info li {
-            margin: 8px 0;
-            color: #555;
+        .typing-dots::after {
+            content: '';
+            animation: dots 1.5s infinite;
         }
 
-        .api-info code {
-            background: #bbdefb;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .empty-hint {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🤖 Spring AI Chat Demo</h1>
+        <h1>Spring AI Chat Demo</h1>
+
+        <div class="session-info">
+            <div class="session-id" id="sessionIdDisplay">当前会话：未创建</div>
+            <div class="session-actions">
+                <button class="btn-session btn-new-session" onclick="createNewSession()">新建会话</button>
+                <button class="btn-session btn-history" onclick="viewHistory()">查看历史</button>
+            </div>
+        </div>
+
+        <div class="chat-section">
+            <div class="history-section" id="historySection">
+                <div class="empty-hint" id="emptyHint">发送消息开始对话</div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <span class="typing-dots">AI 正在思考</span>
+            </div>
+        </div>
 
         <div class="input-section">
-            <label for="messageInput">输入消息：</label>
-            <textarea id="messageInput" placeholder="请输入您的问题...">你好，请介绍一下自己</textarea>
+            <textarea id="messageInput" placeholder="请输入您的问题..."></textarea>
+            <div class="button-group">
+                <button class="btn btn-stream" id="btnStream" onclick="sendStreamRequest()">发送</button>
+                <button class="btn btn-clear" onclick="clearResponse()">清空</button>
+            </div>
         </div>
 
-        <div class="button-group">
-            <button class="btn btn-primary" id="btnPost" onclick="sendPostRequest()">
-                POST 完整响应
-            </button>
-            <button class="btn btn-secondary" id="btnGet" onclick="sendGetRequest()">
-                GET 简单响应
-            </button>
-            <button class="btn btn-stream" id="btnStream" onclick="sendStreamRequest()">
-                GET 流式响应
-            </button>
-            <button class="btn btn-clear" onclick="clearResponse()">
-                清空
-            </button>
-        </div>
-
-        <div class="status-bar idle" id="statusBar">
-            状态：就绪
-        </div>
-
-        <div class="response-section">
-            <label for="responseBox">响应结果：</label>
-            <div class="response-box" id="responseBox">等待请求...</div>
-        </div>
-
-        <div class="api-info">
-            <h3>接口说明</h3>
-            <ul>
-                <li><strong>POST 完整响应</strong> - <code>POST /api/chat</code> 返回 JSON（含模型信息、token数）</li>
-                <li><strong>GET 简单响应</strong> - <code>GET /api/chat?message=xxx</code> 返回纯文本</li>
-                <li><strong>GET 流式响应</strong> - <code>GET /api/chat/stream?message=xxx</code> SSE 实时推送</li>
-            </ul>
-        </div>
+        <div class="status-bar idle" id="statusBar">状态：就绪</div>
     </div>
 
     <script>
         const messageInput = document.getElementById('messageInput');
-        const responseBox = document.getElementById('responseBox');
         const statusBar = document.getElementById('statusBar');
-        const buttons = ['btnPost', 'btnGet', 'btnStream'];
+        const sessionIdDisplay = document.getElementById('sessionIdDisplay');
+        const historySection = document.getElementById('historySection');
+        const emptyHint = document.getElementById('emptyHint');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const btnStream = document.getElementById('btnStream');
+
+        let currentSessionId = null;
+        let streamCompleted = false;
+
+        function init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionIdFromUrl = urlParams.get('sessionId');
+
+            if (sessionIdFromUrl) {
+                currentSessionId = sessionIdFromUrl;
+                sessionIdDisplay.textContent = '当前会话：' + sessionIdFromUrl;
+                loadSessionHistory(sessionIdFromUrl);
+            } else {
+                sessionIdDisplay.textContent = '当前会话：未创建（发送消息时自动创建）';
+            }
+        }
+
+        async function loadSessionHistory(sessionId) {
+            try {
+                const response = await fetch(`/api/conversation/${sessionId}`);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    emptyHint.style.display = 'none';
+                    historySection.innerHTML = data.messages.map(msg => `
+                        <div class="message-item ${msg.role}">
+                            <div class="sender">${msg.role === 'user' ? '用户' : '助手'}</div>
+                            ${escapeHtml(msg.content)}
+                        </div>
+                    `).join('');
+                    scrollToBottom();
+                }
+            } catch (error) {
+                console.error('加载历史失败:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function scrollToBottom() {
+            historySection.scrollTop = historySection.scrollHeight;
+        }
+
+        function createNewSession() {
+            currentSessionId = null;
+            sessionIdDisplay.textContent = '当前会话：未创建（发送消息时自动创建）';
+            historySection.innerHTML = '<div class="empty-hint" id="emptyHint">发送消息开始对话</div>';
+            clearResponse();
+            window.history.replaceState({}, '', '/index.html');
+        }
+
+        function viewHistory() {
+            window.location.href = '/conversation.html';
+        }
 
         function setButtonsDisabled(disabled) {
-            buttons.forEach(id => {
-                document.getElementById(id).disabled = disabled;
-            });
+            btnStream.disabled = disabled;
         }
 
         function setStatus(text, type) {
@@ -276,76 +368,44 @@
             statusBar.className = 'status-bar ' + type;
         }
 
+        function showTyping() {
+            typingIndicator.classList.add('active');
+        }
+
+        function hideTyping() {
+            typingIndicator.classList.remove('active');
+        }
+
         function clearResponse() {
-            responseBox.textContent = '';
-            responseBox.className = 'response-box';
+            if (emptyHint) {
+                emptyHint.style.display = 'block';
+            }
+            historySection.innerHTML = '<div class="empty-hint" id="emptyHint">发送消息开始对话</div>';
             setStatus('就绪', 'idle');
+            streamCompleted = false;
         }
 
-        async function sendPostRequest() {
-            const message = messageInput.value.trim();
-            if (!message) {
-                alert('请输入消息');
-                return;
+        function addMessage(role, content) {
+            let hint = document.getElementById('emptyHint');
+            if (hint) {
+                hint.style.display = 'none';
             }
 
-            setButtonsDisabled(true);
-            setStatus('请求中...', 'loading');
-            responseBox.textContent = '正在请求...';
-            responseBox.className = 'response-box json';
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                });
-
-                if (!response.ok) {
-                    throw new Error('请求失败: ' + response.status);
-                }
-
-                const data = await response.json();
-                responseBox.textContent = JSON.stringify(data, null, 2);
-                setStatus('完成', 'idle');
-            } catch (error) {
-                responseBox.textContent = '错误: ' + error.message;
-                setStatus('错误', 'error');
-            } finally {
-                setButtonsDisabled(false);
-            }
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-item ' + role;
+            messageDiv.innerHTML = `
+                <div class="sender">${role === 'user' ? '用户' : '助手'}</div>
+                ${escapeHtml(content)}
+            `;
+            historySection.appendChild(messageDiv);
+            scrollToBottom();
         }
 
-        async function sendGetRequest() {
-            const message = messageInput.value.trim();
-            if (!message) {
-                alert('请输入消息');
-                return;
+        function parseStreamData(data) {
+            if (data.startsWith('data:')) {
+                return data.substring(5).trim();
             }
-
-            setButtonsDisabled(true);
-            setStatus('请求中...', 'loading');
-            responseBox.textContent = '正在请求...';
-            responseBox.className = 'response-box';
-
-            try {
-                const response = await fetch('/api/chat?message=' + encodeURIComponent(message));
-
-                if (!response.ok) {
-                    throw new Error('请求失败: ' + response.status);
-                }
-
-                const text = await response.text();
-                responseBox.textContent = text;
-                setStatus('完成', 'idle');
-            } catch (error) {
-                responseBox.textContent = '错误: ' + error.message;
-                setStatus('错误', 'error');
-            } finally {
-                setButtonsDisabled(false);
-            }
+            return data;
         }
 
         function sendStreamRequest() {
@@ -355,48 +415,128 @@
                 return;
             }
 
+            streamCompleted = false;
             setButtonsDisabled(true);
-            setStatus('流式请求中...', 'loading');
-            responseBox.textContent = '';
-            responseBox.className = 'response-box streaming';
+            setStatus('AI 思考中...', 'loading');
+            showTyping();
 
-            const url = '/api/chat/stream?message=' + encodeURIComponent(message);
-            console.log('开始流式请求: ' + url);
-
-            const eventSource = new EventSource(url);
-
-            eventSource.onopen = function(event) {
-                console.log('EventSource 连接已打开');
-                setStatus('流式连接已建立', 'loading');
+            const requestBody = {
+                message: message,
+                sessionId: currentSessionId
             };
 
-            eventSource.onmessage = function(event) {
-                console.log('收到消息: ' + event.data);
-                if (event.data === '[DONE]') {
-                    eventSource.close();
-                    setStatus('流式完成', 'idle');
+            fetch('/api/chat/stream/context', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            }).then(response => {
+                if (!response.ok) {
+                    console.error('请求失败:', response.status, response.statusText);
+                    setStatus('请求失败: ' + response.status, 'error');
                     setButtonsDisabled(false);
+                    hideTyping();
                     return;
                 }
-                responseBox.textContent += event.data;
-                // 自动滚动到底部
-                responseBox.scrollTop = responseBox.scrollHeight;
-            };
 
-            eventSource.onerror = function(event) {
-                console.log('EventSource 错误: ', event);
-                if (eventSource.readyState === EventSource.CLOSED) {
-                    setStatus('流式完成', 'idle');
-                    console.log('EventSource 已关闭');
-                } else {
-                    responseBox.textContent += '\n[连接错误]';
-                    setStatus('错误', 'error');
-                    console.log('EventSource 连接错误');
+                hideTyping();
+                setStatus('正在生成...', 'loading');
+                addMessage('user', message);
+                messageInput.value = '';
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let fullResponse = '';
+                let assistantMessageEl = null;
+                let assistantContentEl = null;
+
+                // 创建占位的 assistant 消息
+                function createAssistantMessage() {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message-item assistant';
+                    msgDiv.innerHTML = `
+                        <div class="sender">助手</div>
+                        <div class="content"></div>
+                    `;
+                    assistantContentEl = msgDiv.querySelector('.content');
+                    historySection.appendChild(msgDiv);
+                    assistantMessageEl = msgDiv;
+                    scrollToBottom();
                 }
-                eventSource.close();
+
+                createAssistantMessage();
+
+                function read() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            streamCompleted = true;
+                            setStatus('完成', 'idle');
+                            setButtonsDisabled(false);
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            if (line.trim() === '' || line.trim() === 'data:') continue;
+
+                            const data = parseStreamData(line);
+
+                            if (data === '[DONE]') {
+                                streamCompleted = true;
+                                setStatus('完成', 'idle');
+                                setButtonsDisabled(false);
+                                continue;
+                            }
+
+                            try {
+                                const sessionData = JSON.parse(data);
+                                if (sessionData.sessionId) {
+                                    currentSessionId = sessionData.sessionId;
+                                    sessionIdDisplay.textContent = '当前会话：' + sessionData.sessionId;
+                                    continue;
+                                }
+                            } catch (e) {
+                                fullResponse += data;
+                                if (assistantContentEl) {
+                                    assistantContentEl.textContent = fullResponse;
+                                    scrollToBottom();
+                                }
+                            }
+                        }
+
+                        read();
+                    }).catch(error => {
+                        console.error('读取错误:', error);
+                        if (!streamCompleted) {
+                            setStatus('错误', 'error');
+                            setButtonsDisabled(false);
+                            hideTyping();
+                        }
+                    });
+                }
+
+                read();
+            }).catch(error => {
+                console.error('请求错误:', error);
+                setStatus('请求失败', 'error');
                 setButtonsDisabled(false);
-            };
+                hideTyping();
+            });
         }
+
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendStreamRequest();
+            }
+        });
+
+        init();
     </script>
 </body>
 </html>

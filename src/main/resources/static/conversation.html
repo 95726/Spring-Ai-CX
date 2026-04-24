@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会话历史记录</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-refresh {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-refresh:hover {
+            background: #5a6fd6;
+            transform: translateY(-2px);
+        }
+
+        .btn-new {
+            background: #f093fb;
+            color: white;
+        }
+
+        .btn-new:hover {
+            background: #e082ea;
+            transform: translateY(-2px);
+        }
+
+        .btn-delete {
+            background: #ff6b6b;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-delete:hover {
+            background: #ee5a5a;
+        }
+
+        .btn-view {
+            background: #4CAF50;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-view:hover {
+            background: #45a049;
+        }
+
+        .btn-continue {
+            background: #2196F3;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-continue:hover {
+            background: #1976D2;
+        }
+
+        .status-bar {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .status-bar.idle {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-bar.loading {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-bar.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .conversation-list {
+            margin-top: 20px;
+        }
+
+        .conversation-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .conversation-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .conversation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .conversation-id {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .conversation-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .conversation-info {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .info-item {
+            font-size: 13px;
+            color: #555;
+        }
+
+        .info-item strong {
+            color: #333;
+        }
+
+        .conversation-preview {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .conversation-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .detail-modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .detail-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .detail-title {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .btn-close {
+            background: #ccc;
+            color: white;
+            padding: 8px 16px;
+        }
+
+        .btn-close:hover {
+            background: #bbb;
+        }
+
+        .chat-history {
+            margin-top: 20px;
+        }
+
+        .message-item {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .message-item.user {
+            justify-content: flex-end;
+        }
+
+        .message-item.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.user {
+            background: #667eea;
+            color: white;
+        }
+
+        .message-bubble.assistant {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .message-item.user .message-meta {
+            text-align: right;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #888;
+            padding: 40px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>会话历史记录</h1>
+
+        <div class="header-actions">
+            <button class="btn btn-refresh" onclick="loadConversations()">刷新列表</button>
+            <button class="btn btn-new" onclick="startNewConversation()">新建对话</button>
+        </div>
+
+        <div class="status-bar idle" id="statusBar">状态：就绪</div>
+
+        <div class="conversation-list" id="conversationList">
+            <div class="empty-message">加载中...</div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="detail-modal" id="detailModal">
+        <div class="detail-content">
+            <div class="detail-header">
+                <h2 class="detail-title" id="detailTitle">会话详情</h2>
+                <button class="btn btn-close" onclick="closeDetail()">关闭</button>
+            </div>
+            <div class="chat-history" id="chatHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        const statusBar = document.getElementById('statusBar');
+        const conversationList = document.getElementById('conversationList');
+        const detailModal = document.getElementById('detailModal');
+        const chatHistory = document.getElementById('chatHistory');
+        const detailTitle = document.getElementById('detailTitle');
+
+        /**
+         * 设置状态栏
+         */
+        function setStatus(text, type) {
+            statusBar.textContent = '状态：' + text;
+            statusBar.className = 'status-bar ' + type;
+        }
+
+        /**
+         * 格式化时间戳为可读字符串
+         */
+        function formatTime(timestamp) {
+            if (!timestamp || timestamp === 0) return '未知';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+
+            // 小于1分钟
+            if (diff < 60000) return '刚刚';
+            // 小于1小时
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            // 小于24小时
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            // 大于24小时
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().substring(0, 5);
+        }
+
+        /**
+         * 加载会话列表
+         */
+        async function loadConversations() {
+            setStatus('加载中...', 'loading');
+
+            try {
+                const response = await fetch('/api/conversation/list');
+                const data = await response.json();
+
+                if (data.conversations && data.conversations.length > 0) {
+                    renderConversationList(data.conversations);
+                    setStatus('已加载 ' + data.conversations.length + ' 个会话', 'idle');
+                } else {
+                    conversationList.innerHTML = '<div class="empty-message">暂无会话记录</div>';
+                    setStatus('暂无会话', 'idle');
+                }
+            } catch (error) {
+                console.error('加载失败:', error);
+                conversationList.innerHTML = '<div class="empty-message">加载失败，请检查服务器连接</div>';
+                setStatus('加载失败', 'error');
+            }
+        }
+
+        /**
+         * 渲染会话列表
+         */
+        function renderConversationList(conversations) {
+            conversationList.innerHTML = conversations.map(conv => `
+                <div class="conversation-card">
+                    <div class="conversation-header">
+                        <span class="conversation-id">${conv.sessionId}</span>
+                        <span class="conversation-time">${formatTime(conv.lastActiveAt)}</span>
+                    </div>
+                    <div class="conversation-info">
+                        <span class="info-item"><strong>消息数:</strong> ${conv.messageCount}</span>
+                    </div>
+                    <div class="conversation-preview">${conv.preview || '暂无消息预览'}</div>
+                    <div class="conversation-actions">
+                        <button class="btn btn-view" onclick="viewDetail('${conv.sessionId}')">查看详情</button>
+                        <button class="btn btn-continue" onclick="continueConversation('${conv.sessionId}')">继续对话</button>
+                        <button class="btn btn-delete" onclick="deleteConversation('${conv.sessionId}')">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * 查看会话详情
+         */
+        async function viewDetail(sessionId) {
+            setStatus('加载详情...', 'loading');
+
+            try {
+                const response = await fetch(`/api/conversation/${sessionId}`);
+                const data = await response.json();
+
+                detailTitle.textContent = `会话: ${sessionId.substring(0, 20)}...`;
+                renderChatHistory(data.messages);
+                detailModal.classList.add('active');
+                setStatus('就绪', 'idle');
+            } catch (error) {
+                console.error('加载详情失败:', error);
+                setStatus('加载详情失败', 'error');
+            }
+        }
+
+        /**
+         * 渲染聊天历史
+         */
+        function renderChatHistory(messages) {
+            if (!messages || messages.length === 0) {
+                chatHistory.innerHTML = '<div class="empty-message">暂无消息记录</div>';
+                return;
+            }
+
+            chatHistory.innerHTML = messages.map(msg => `
+                <div class="message-item ${msg.role}">
+                    <div>
+                        <div class="message-bubble ${msg.role}">${msg.content}</div>
+                        <div class="message-meta">${formatTime(msg.timestamp)} - ${msg.role === 'user' ? '用户' : '助手'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * 关闭详情弹窗
+         */
+        function closeDetail() {
+            detailModal.classList.remove('active');
+        }
+
+        /**
+         * 继续对话（跳转到聊天页面并带上sessionId）
+         */
+        function continueConversation(sessionId) {
+            window.location.href = `/index.html?sessionId=${sessionId}`;
+        }
+
+        /**
+         * 新建对话（跳转到聊天页面不带sessionId）
+         */
+        function startNewConversation() {
+            window.location.href = '/index.html';
+        }
+
+        /**
+         * 删除会话
+         */
+        async function deleteConversation(sessionId) {
+            if (!confirm('确定要删除此会话吗？删除后无法恢复。')) {
+                return;
+            }
+
+            setStatus('删除中...', 'loading');
+
+            try {
+                const response = await fetch(`/api/conversation/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    setStatus('删除成功', 'idle');
+                    loadConversations();
+                } else {
+                    setStatus('删除失败', 'error');
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                setStatus('删除失败', 'error');
+            }
+        }
+
+        // 页面加载时自动加载会话列表
+        loadConversations();
+    </script>
+</body>
+</html>

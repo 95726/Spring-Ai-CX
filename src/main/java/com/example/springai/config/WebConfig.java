@@ -21,8 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
         configurer
                 .favorParameter(false)
-                .ignoreAcceptHeader(false)
-                .defaultContentType(org.springframework.http.MediaType.TEXT_HTML)
-                .mediaType("event-stream", org.springframework.http.MediaType.valueOf("text/event-stream;charset=UTF-8"));
+                .ignoreAcceptHeader(true)
+                .defaultContentType(org.springframework.http.MediaType.APPLICATION_JSON);
     }
 }

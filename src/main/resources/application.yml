@@ -7,7 +7,7 @@ spring:
 
   data:
     redis:
-      host: localhost
+      host: 8.135.48.81
       port: 6379
       # username: your-username
       password: cx19971020

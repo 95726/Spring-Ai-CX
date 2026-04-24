@@ -1,8 +1,11 @@
 package com.example.springai.service;
 
 import com.example.springai.dto.ChatResponse;
+import com.example.springai.dto.MessageDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -10,9 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 聊天服务类
@@ -22,6 +27,8 @@ import java.util.Map;
  */
 @Service
 public class ChatService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
@@ -157,5 +164,93 @@ public class ChatService {
                 .filter(content -> content != null && !content.isEmpty())
                 .doOnError(error -> System.out.println("流式请求错误: " + error.getMessage()))
                 .doOnComplete(() -> System.out.println("流式请求完成"));
+    }
+
+    /**
+     * 发送带上下文的聊天消息并以流式方式返回响应
+     *
+     * 构建包含历史消息的完整请求体，发送给AI模型并实时解析流式响应。
+     * 历史消息用于保持多轮对话的上下文连贯性。
+     *
+     * @param message         用户输入的聊天消息
+     * @param historyMessages 历史消息列表，包含之前的用户和助手消息
+     * @return Flux<String> 流式响应，每个元素代表一个文本片段
+     */
+    public Flux<String> chatStreamWithContext(String message, List<MessageDTO> historyMessages) {
+        // 构建请求体
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", model);
+        requestBody.put("stream", true);
+        requestBody.put("temperature", temperature);
+        requestBody.put("max_tokens", maxTokens);
+
+        // 构建消息列表：先添加历史消息，再添加当前用户消息
+        List<Map<String, String>> messages = new ArrayList<>();
+        if (historyMessages != null && !historyMessages.isEmpty()) {
+            // 将历史消息转换为API所需格式
+            messages.addAll(historyMessages.stream()
+                    .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
+                    .collect(Collectors.toList()));
+        }
+        // 添加当前用户消息
+        messages.add(Map.of("role", "user", "content", message));
+        requestBody.put("messages", messages);
+
+        log.info("发送带上下文的流式请求，历史消息数: {}, 当前消息: {}",
+                historyMessages != null ? historyMessages.size() : 0, message);
+
+        WebClient webClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
+                .build();
+
+        return webClient.post()
+                .uri("/v1/chat/completions")
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .doOnNext(line -> log.debug("收到原始数据: {}", line))
+                .filter(line -> line != null && !line.isEmpty())
+                .filter(line -> !line.equals("data: [DONE]"))
+                .mapNotNull(line -> {
+                    try {
+                        // 处理 SSE 格式数据，提取JSON内容
+                        String jsonStr = line;
+                        if (line.startsWith("data:")) {
+                            jsonStr = line.substring(5).trim();
+                        }
+
+                        if (jsonStr.isEmpty() || jsonStr.equals("[DONE]")) {
+                            return null;
+                        }
+
+                        // 解析JSON获取content字段
+                        JsonNode jsonNode = objectMapper.readTree(jsonStr);
+                        JsonNode choices = jsonNode.path("choices");
+                        if (choices.isArray() && choices.size() > 0) {
+                            JsonNode choice = choices.get(0);
+                            // 优先尝试delta字段（流式格式），其次尝试message字段（非流式格式）
+                            JsonNode contentNode = choice.path("delta").path("content");
+                            if (contentNode.isMissingNode() || contentNode.isNull()) {
+                                contentNode = choice.path("message").path("content");
+                            }
+                            if (!contentNode.isMissingNode() && contentNode.isTextual()) {
+                                String content = contentNode.asText();
+                                log.debug("解析内容: {}", content);
+                                return content;
+                            }
+                        }
+                        return null;
+                    } catch (Exception e) {
+                        log.warn("解析错误: {}, 行: {}", e.getMessage(), line);
+                        return null;
+                    }
+                })
+                .filter(content -> content != null && !content.isEmpty())
+                .doOnError(error -> log.error("流式请求错误: {}", error.getMessage()))
+                .doOnComplete(() -> log.info("带上下文的流式请求完成"));
     }
 }
