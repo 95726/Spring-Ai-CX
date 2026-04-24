@@ -84,6 +84,15 @@
             background: #5a6fd6;
         }
 
+        .btn-home {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-home:hover {
+            background: #45a049;
+        }
+
         .chat-section {
             flex: 1;
             display: flex;
@@ -257,15 +266,59 @@
             padding: 40px;
             font-size: 14px;
         }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>正在加载...</p>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
         <h1>Spring AI Chat Demo</h1>
 
         <div class="session-info">
             <div class="session-id" id="sessionIdDisplay">当前会话：未创建</div>
             <div class="session-actions">
+                <button class="btn-session btn-home" onclick="goToHome()">返回主页</button>
                 <button class="btn-session btn-new-session" onclick="createNewSession()">新建会话</button>
                 <button class="btn-session btn-history" onclick="viewHistory()">查看历史</button>
             </div>
@@ -304,7 +357,33 @@
         let currentSessionId = null;
         let streamCompleted = false;
 
-        function init() {
+        /**
+         * 初始化页面，检查用户登录状态
+         */
+        async function init() {
+            try {
+                const response = await fetch('/api/auth/current');
+                const data = await response.json();
+
+                if (data.success) {
+                    // 已登录，显示主内容
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('mainContainer').style.display = 'block';
+                    initSession();
+                } else {
+                    // 未登录，跳转到登录页
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        /**
+         * 初始化会话
+         */
+        function initSession() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionIdFromUrl = urlParams.get('sessionId');
 
@@ -317,10 +396,24 @@
             }
         }
 
+        /**
+         * 返回用户主页
+         */
+        function goToHome() {
+            window.location.href = '/user-home.html';
+        }
+
         async function loadSessionHistory(sessionId) {
             try {
                 const response = await fetch(`/api/conversation/${sessionId}`);
                 const data = await response.json();
+
+                // 检查是否有权限
+                if (data.error) {
+                    alert(data.error);
+                    createNewSession();
+                    return;
+                }
 
                 if (data.messages && data.messages.length > 0) {
                     emptyHint.style.display = 'none';
@@ -493,6 +586,13 @@
                                 continue;
                             }
 
+                            // 检查是否是未登录错误
+                            if (data.includes('"error":"未登录"')) {
+                                alert('请先登录');
+                                window.location.href = '/login.html';
+                                return;
+                            }
+
                             try {
                                 const sessionData = JSON.parse(data);
                                 if (sessionData.sessionId) {
@@ -536,6 +636,7 @@
             }
         });
 
+        // 初始化页面
         init();
     </script>
 </body>

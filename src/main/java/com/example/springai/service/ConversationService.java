@@ -17,15 +17,15 @@ import java.util.stream.Collectors;
  *
  * 提供会话的创建、查询、存储和删除功能，使用Redis作为持久化存储。
  * 会话消息存储在Redis List中，元数据存储在Redis Hash中。
- * 符合阿里巴巴Java开发规范的服务层设计。
- *
- * @author Spring AI Demo
- * @since 1.0.0
+ * 会话与用户绑定，支持按用户查询会话列表。
  */
 @Service
 public class ConversationService {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
+
+    /** 用户会话列表Key前缀 */
+    private static final String USER_CONVERSATIONS_PREFIX = "user:conversations:";
 
     /** 会话消息Key前缀 */
     private static final String CONVERSATION_PREFIX = "conversation:";
@@ -57,26 +57,34 @@ public class ConversationService {
     }
 
     /**
-     * 创建新会话
+     * 创建新会话并绑定用户
      *
      * 生成唯一的会话ID（格式：conv-{uuid}），并初始化会话元数据存储到Redis。
+     * 同时将会话ID添加到用户的会话列表中。
      *
+     * @param userId 用户ID
      * @return 新创建的会话ID
      */
-    public String createSession() {
+    public String createSession(String userId) {
         String sessionId = SESSION_ID_PREFIX + UUID.randomUUID().toString();
         long now = System.currentTimeMillis();
 
-        // 初始化元数据并存入Redis Hash
+        // 初始化元数据并存入Redis Hash，包含用户ID
         String metaKey = getMetaKey(sessionId);
         Map<String, String> meta = new HashMap<>();
         meta.put("createdAt", String.valueOf(now));
         meta.put("lastActiveAt", String.valueOf(now));
         meta.put("messageCount", "0");
+        meta.put("userId", userId);
         redisTemplate.opsForHash().putAll(metaKey, meta);
         redisTemplate.expire(metaKey, CONVERSATION_TTL_HOURS, TimeUnit.HOURS);
 
-        log.info("创建新会话: {}", sessionId);
+        // 将会话ID添加到用户的会话列表
+        String userConversationsKey = getUserConversationsKey(userId);
+        redisTemplate.opsForSet().add(userConversationsKey, sessionId);
+        redisTemplate.expire(userConversationsKey, CONVERSATION_TTL_HOURS, TimeUnit.HOURS);
+
+        log.info("创建新会话: {}, 用户ID: {}", sessionId, userId);
         return sessionId;
     }
 
@@ -109,6 +117,13 @@ public class ConversationService {
             redisTemplate.opsForHash().increment(metaKey, "messageCount", 1);
             redisTemplate.opsForHash().put(metaKey, "lastActiveAt", String.valueOf(System.currentTimeMillis()));
             redisTemplate.expire(metaKey, CONVERSATION_TTL_HOURS, TimeUnit.HOURS);
+
+            // 更新用户会话列表过期时间
+            String userId = getMetaData(sessionId).get("userId");
+            if (userId != null) {
+                String userConversationsKey = getUserConversationsKey(userId);
+                redisTemplate.expire(userConversationsKey, CONVERSATION_TTL_HOURS, TimeUnit.HOURS);
+            }
 
             log.debug("添加消息到会话 {}: role={}, content长度={}", sessionId, message.getRole(), message.getContent().length());
         } catch (JsonProcessingException e) {
@@ -154,7 +169,7 @@ public class ConversationService {
     /**
      * 获取会话元数据
      *
-     * 从Redis Hash中获取会话的元数据信息，包括创建时间、最后活跃时间和消息计数。
+     * 从Redis Hash中获取会话的元数据信息，包括创建时间、最后活跃时间、消息计数和用户ID。
      *
      * @param sessionId 会话ID
      * @return 元数据Map，如果会话不存在则返回空Map
@@ -171,6 +186,33 @@ public class ConversationService {
         Map<String, String> meta = new HashMap<>();
         rawMeta.forEach((k, v) -> meta.put(k.toString(), v.toString()));
         return meta;
+    }
+
+    /**
+     * 检查会话是否存在且属于指定用户
+     *
+     * 通过检查元数据Key是否存在来判断会话是否有效，同时验证用户归属。
+     *
+     * @param sessionId 会话ID
+     * @param userId    用户ID
+     * @return true如果会话存在且属于该用户，false如果不存在或不属于该用户
+     */
+    public boolean sessionExistsAndBelongsToUser(String sessionId, String userId) {
+        if (sessionId == null || sessionId.isEmpty() || userId == null) {
+            return false;
+        }
+
+        // 检查会话是否存在
+        String metaKey = getMetaKey(sessionId);
+        Boolean exists = redisTemplate.hasKey(metaKey);
+        if (!Boolean.TRUE.equals(exists)) {
+            return false;
+        }
+
+        // 检查会话是否属于该用户
+        Map<String, String> meta = getMetaData(sessionId);
+        String sessionUserId = meta.get("userId");
+        return userId.equals(sessionUserId);
     }
 
     /**
@@ -193,12 +235,14 @@ public class ConversationService {
     /**
      * 删除会话
      *
-     * 删除指定会话的所有数据，包括消息历史（Redis List）和元数据（Redis Hash）。
+     * 删除指定会话的所有数据，包括消息历史（Redis List）、元数据（Redis Hash），
+     * 以及用户会话列表中的会话ID。
      *
      * @param sessionId 会话ID
+     * @param userId    用户ID
      * @return true如果删除成功，false如果会话ID为空
      */
-    public boolean deleteSession(String sessionId) {
+    public boolean deleteSession(String sessionId, String userId) {
         if (sessionId == null || sessionId.isEmpty()) {
             return false;
         }
@@ -209,15 +253,69 @@ public class ConversationService {
         redisTemplate.delete(messagesKey);
         redisTemplate.delete(metaKey);
 
-        log.info("删除会话: {}", sessionId);
+        // 从用户会话列表中移除
+        if (userId != null) {
+            String userConversationsKey = getUserConversationsKey(userId);
+            redisTemplate.opsForSet().remove(userConversationsKey, sessionId);
+        }
+
+        log.info("删除会话: {}, 用户ID: {}", sessionId, userId);
         return true;
     }
 
     /**
-     * 获取所有会话列表
+     * 获取用户的会话列表
      *
-     * 扫描Redis中所有会话消息Key，提取会话ID并返回简要信息列表，
+     * 从Redis Set中获取用户的所有会话ID，返回简要信息列表，
      * 包括最后活跃时间、消息数量和最后一条消息预览。
+     *
+     * @param userId 用户ID
+     * @return 会话列表，按最后活跃时间倒序排列
+     */
+    public List<Map<String, Object>> getUserConversations(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String userConversationsKey = getUserConversationsKey(userId);
+        Set<String> sessionIds = redisTemplate.opsForSet().members(userConversationsKey);
+
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Map<String, Object>> conversations = new ArrayList<>();
+        for (String sessionId : sessionIds) {
+            Map<String, Object> convInfo = new HashMap<>();
+            convInfo.put("sessionId", sessionId);
+
+            // 获取元数据
+            Map<String, String> meta = getMetaData(sessionId);
+            long lastActiveAt = Long.parseLong(meta.getOrDefault("lastActiveAt", "0"));
+            int messageCount = Integer.parseInt(meta.getOrDefault("messageCount", "0"));
+            convInfo.put("lastActiveAt", lastActiveAt);
+            convInfo.put("messageCount", messageCount);
+
+            // 获取最后一条消息作为预览（最多50字符）
+            List<MessageDTO> messages = getMessages(sessionId);
+            if (!messages.isEmpty()) {
+                String lastContent = messages.get(messages.size() - 1).getContent();
+                String preview = lastContent.length() > 50 ? lastContent.substring(0, 50) + "..." : lastContent;
+                convInfo.put("preview", preview);
+            }
+
+            conversations.add(convInfo);
+        }
+
+        // 按最后活跃时间倒序排列
+        conversations.sort((a, b) -> Long.compare((Long) b.get("lastActiveAt"), (Long) a.get("lastActiveAt")));
+        return conversations;
+    }
+
+    /**
+     * 获取所有会话列表（无用户过滤）
+     *
+     * 扫描Redis中所有会话消息Key，提取会话ID并返回简要信息列表。
      *
      * @return 会话列表，按最后活跃时间倒序排列
      */
@@ -258,6 +356,18 @@ public class ConversationService {
         // 按最后活跃时间倒序排列
         conversations.sort((a, b) -> Long.compare((Long) b.get("lastActiveAt"), (Long) a.get("lastActiveAt")));
         return conversations;
+    }
+
+    /**
+     * 构建用户会话列表Key
+     *
+     * 格式：user:conversations:{userId}
+     *
+     * @param userId 用户ID
+     * @return Redis Key
+     */
+    private String getUserConversationsKey(String userId) {
+        return USER_CONVERSATIONS_PREFIX + userId;
     }
 
     /**

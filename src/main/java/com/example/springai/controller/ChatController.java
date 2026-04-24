@@ -4,19 +4,28 @@ import com.example.springai.dto.ChatRequest;
 import com.example.springai.dto.ChatResponse;
 import com.example.springai.dto.ConversationRequest;
 import com.example.springai.dto.MessageDTO;
+import com.example.springai.entity.AiUser;
 import com.example.springai.service.ChatService;
 import com.example.springai.service.ConversationService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.List;
 
+/**
+ * 聊天控制器
+ *
+ * 提供与AI模型交互的REST接口，支持普通请求和流式请求。
+ * 会话与当前登录用户绑定。
+ */
 @RestController
 @RequestMapping("/api/chat")
 @CrossOrigin(origins = "*")
 public class ChatController {
 
+    private static final String SESSION_USER_KEY = "currentUser";
 
     private final ChatService chatService;
     private final ConversationService conversationService;
@@ -28,6 +37,7 @@ public class ChatController {
 
     /**
      * 问答接口 - POST请求
+     *
      * @param request 包含用户消息的请求体
      * @return AI响应
      */
@@ -38,6 +48,7 @@ public class ChatController {
 
     /**
      * 简单问答接口 - GET请求
+     *
      * @param message 用户消息
      * @return AI响应字符串
      */
@@ -49,11 +60,8 @@ public class ChatController {
     /**
      * 流式问答接口 - GET请求
      *
-     * 使用 Server-Sent Events (SSE) 方式返回流式响应，
-     * AI 生成的每个 token 会实时推送给客户端。
-     * 适用于需要实时展示回复进度的场景（如聊天界面）。
-     *
-     * 注意：使用 UTF-8 编码确保中文等非 ASCII 字符正确显示
+     * 使用Server-Sent Events (SSE)方式返回流式响应，
+     * AI生成的每个token会实时推送给客户端。
      *
      * @param message 用户消息
      * @return Flux<String> 流式响应
@@ -70,24 +78,29 @@ public class ChatController {
      * 带上下文的流式问答接口 - POST请求
      *
      * 支持多轮对话，历史消息存储在Redis中。
+     * 会话与当前登录用户绑定，只有登录用户才能访问自己的会话。
      * 如果请求中不包含sessionId，会创建新会话；
-     * 如果包含sessionId，会继续该会话的上下文。
-     *
-     * SSE响应格式：
-     * - 每个数据片段以 "data:内容\n\n" 格式发送
-     * - 流结束时发送 "data:[DONE]\n\n"
-     * - 最后发送会话ID "data:{"sessionId":"..."}\n\n"
+     * 如果包含sessionId，会验证会话是否属于当前用户。
      *
      * @param request 包含用户消息和可选sessionId的请求体
+     * @param session HTTP会话，用于获取当前登录用户
      * @return Flux<String> 流式响应，格式为SSE
      */
     @PostMapping("/stream/context")
-    public Flux<String> chatStreamWithContext(@RequestBody ConversationRequest request) {
+    public Flux<String> chatStreamWithContext(@RequestBody ConversationRequest request, HttpSession session) {
+        // 获取当前登录用户
+        AiUser currentUser = (AiUser) session.getAttribute(SESSION_USER_KEY);
+        if (currentUser == null) {
+            return Flux.just("data:{\"error\":\"未登录\"}\n\n");
+        }
+
+        String userId = currentUser.getId();
         String sessionId = request.getSessionId();
 
-        // 如果没有sessionId或sessionId不存在，创建新会话
-        if (sessionId == null || sessionId.isEmpty() || !conversationService.sessionExists(sessionId)) {
-            sessionId = conversationService.createSession();
+        // 如果没有sessionId或sessionId不存在或不属于该用户，创建新会话
+        if (sessionId == null || sessionId.isEmpty() ||
+                !conversationService.sessionExistsAndBelongsToUser(sessionId, userId)) {
+            sessionId = conversationService.createSession(userId);
         }
 
         // 保存用户消息到Redis

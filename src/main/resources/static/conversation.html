@@ -71,6 +71,16 @@
             transform: translateY(-2px);
         }
 
+        .btn-home {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-home:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
         .btn-delete {
             background: #ff6b6b;
             color: white;
@@ -298,13 +308,57 @@
             padding: 40px;
             font-size: 16px;
         }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>正在加载...</p>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
         <h1>会话历史记录</h1>
 
         <div class="header-actions">
+            <button class="btn btn-home" onclick="goToHome()">返回主页</button>
             <button class="btn btn-refresh" onclick="loadConversations()">刷新列表</button>
             <button class="btn btn-new" onclick="startNewConversation()">新建对话</button>
         </div>
@@ -335,6 +389,36 @@
         const detailTitle = document.getElementById('detailTitle');
 
         /**
+         * 初始化页面，检查用户登录状态
+         */
+        async function init() {
+            try {
+                const response = await fetch('/api/auth/current');
+                const data = await response.json();
+
+                if (data.success) {
+                    // 已登录，显示主内容
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('mainContainer').style.display = 'block';
+                    loadConversations();
+                } else {
+                    // 未登录，跳转到登录页
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        /**
+         * 返回用户主页
+         */
+        function goToHome() {
+            window.location.href = '/user-home.html';
+        }
+
+        /**
          * 设置状态栏
          */
         function setStatus(text, type) {
@@ -362,7 +446,7 @@
         }
 
         /**
-         * 加载会话列表
+         * 加载会话列表（仅当前用户的会话）
          */
         async function loadConversations() {
             setStatus('加载中...', 'loading');
@@ -370,6 +454,12 @@
             try {
                 const response = await fetch('/api/conversation/list');
                 const data = await response.json();
+
+                // 检查是否未登录
+                if (data.error === '未登录') {
+                    window.location.href = '/login.html';
+                    return;
+                }
 
                 if (data.conversations && data.conversations.length > 0) {
                     renderConversationList(data.conversations);
@@ -418,6 +508,13 @@
                 const response = await fetch(`/api/conversation/${sessionId}`);
                 const data = await response.json();
 
+                // 检查是否未登录或无权限
+                if (data.error) {
+                    alert(data.error);
+                    setStatus('就绪', 'idle');
+                    return;
+                }
+
                 detailTitle.textContent = `会话: ${sessionId.substring(0, 20)}...`;
                 renderChatHistory(data.messages);
                 detailModal.classList.add('active');
@@ -440,11 +537,20 @@
             chatHistory.innerHTML = messages.map(msg => `
                 <div class="message-item ${msg.role}">
                     <div>
-                        <div class="message-bubble ${msg.role}">${msg.content}</div>
+                        <div class="message-bubble ${msg.role}">${escapeHtml(msg.content)}</div>
                         <div class="message-meta">${formatTime(msg.timestamp)} - ${msg.role === 'user' ? '用户' : '助手'}</div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        /**
+         * HTML转义
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         /**
@@ -484,6 +590,13 @@
                 });
                 const data = await response.json();
 
+                // 检查是否未登录或无权限
+                if (data.error) {
+                    alert(data.error);
+                    setStatus('就绪', 'idle');
+                    return;
+                }
+
                 if (data.success) {
                     setStatus('删除成功', 'idle');
                     loadConversations();
@@ -496,8 +609,8 @@
             }
         }
 
-        // 页面加载时自动加载会话列表
-        loadConversations();
+        // 页面加载时检查登录状态
+        init();
     </script>
 </body>
 </html>

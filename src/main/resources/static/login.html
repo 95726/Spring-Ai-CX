@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Spring AI Chat</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .logo p {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 16px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .form-container {
+            display: none;
+        }
+
+        .form-container.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #5a6fd6;
+        }
+
+        .btn-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .link {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>Spring AI Chat</h1>
+            <p>智能对话助手</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" id="loginTab" onclick="switchTab('login')">登录</div>
+            <div class="tab" id="registerTab" onclick="switchTab('register')">注册</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <!-- 登录表单 -->
+        <div class="form-container active" id="loginForm">
+            <div class="form-group">
+                <label for="loginUserName">用户名</label>
+                <input type="text" id="loginUserName" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码">
+            </div>
+            <button class="btn-submit" id="loginBtn" onclick="handleLogin()">登录</button>
+        </div>
+
+        <!-- 注册表单 -->
+        <div class="form-container" id="registerForm">
+            <div class="form-group">
+                <label for="registerUserName">用户名</label>
+                <input type="text" id="registerUserName" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">密码</label>
+                <input type="password" id="registerPassword" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label for="registerPhone">电话号码（可选）</label>
+                <input type="text" id="registerPhone" placeholder="请输入电话号码">
+            </div>
+            <button class="btn-submit" id="registerBtn" onclick="handleRegister()">注册</button>
+        </div>
+
+        <div class="footer">
+            <p>忘记密码请联系管理员</p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 切换登录/注册表单
+         */
+        function switchTab(tab) {
+            const loginTab = document.getElementById('loginTab');
+            const registerTab = document.getElementById('registerTab');
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+
+            // 清除提示消息
+            hideMessages();
+
+            if (tab === 'login') {
+                loginTab.classList.add('active');
+                registerTab.classList.remove('active');
+                loginForm.classList.add('active');
+                registerForm.classList.remove('active');
+            } else {
+                loginTab.classList.remove('active');
+                registerTab.classList.add('active');
+                loginForm.classList.remove('active');
+                registerForm.classList.add('active');
+            }
+        }
+
+        /**
+         * 显示错误消息
+         */
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            const successEl = document.getElementById('successMessage');
+            successEl.style.display = 'none';
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        /**
+         * 显示成功消息
+         */
+        function showSuccess(message) {
+            const errorEl = document.getElementById('errorMessage');
+            const successEl = document.getElementById('successMessage');
+            errorEl.style.display = 'none';
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        /**
+         * 隐藏所有消息
+         */
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        /**
+         * 设置按钮禁用状态
+         */
+        function setButtonDisabled(btnId, disabled) {
+            document.getElementById(btnId).disabled = disabled;
+        }
+
+        /**
+         * 处理登录请求
+         */
+        async function handleLogin() {
+            const userName = document.getElementById('loginUserName').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            // 表单验证
+            if (!userName) {
+                showError('请输入用户名');
+                return;
+            }
+            if (!password) {
+                showError('请输入密码');
+                return;
+            }
+
+            hideMessages();
+            setButtonDisabled('loginBtn', true);
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userName: userName,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('登录成功，正在跳转...');
+                    // 跳转到用户主页
+                    setTimeout(() => {
+                        window.location.href = '/user-home.html';
+                    }, 1000);
+                } else {
+                    showError(data.message);
+                    setButtonDisabled('loginBtn', false);
+                }
+            } catch (error) {
+                showError('网络错误，请稍后重试');
+                setButtonDisabled('loginBtn', false);
+            }
+        }
+
+        /**
+         * 处理注册请求
+         */
+        async function handleRegister() {
+            const userName = document.getElementById('registerUserName').value.trim();
+            const password = document.getElementById('registerPassword').value.trim();
+            const phone = document.getElementById('registerPhone').value.trim();
+
+            // 表单验证
+            if (!userName) {
+                showError('请输入用户名');
+                return;
+            }
+            if (!password) {
+                showError('请输入密码');
+                return;
+            }
+            if (password.length < 6) {
+                showError('密码长度至少6位');
+                return;
+            }
+
+            hideMessages();
+            setButtonDisabled('registerBtn', true);
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userName: userName,
+                        password: password,
+                        phone: phone
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('注册成功，请登录');
+                    // 切换到登录表单
+                    setTimeout(() => {
+                        switchTab('login');
+                        document.getElementById('loginUserName').value = userName;
+                        setButtonDisabled('registerBtn', false);
+                    }, 1500);
+                } else {
+                    showError(data.message);
+                    setButtonDisabled('registerBtn', false);
+                }
+            } catch (error) {
+                showError('网络错误，请稍后重试');
+                setButtonDisabled('registerBtn', false);
+            }
+        }
+
+        // 回车键提交表单
+        document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+
+        document.getElementById('registerPassword').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                handleRegister();
+            }
+        });
+    </script>
+</body>
+</html>
