@@ -7,7 +7,10 @@ import com.example.springai.dto.MessageDTO;
 import com.example.springai.entity.AiUser;
 import com.example.springai.service.ChatService;
 import com.example.springai.service.ConversationService;
+import com.example.springai.service.MarkdownService;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -25,14 +28,17 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class ChatController {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
     private static final String SESSION_USER_KEY = "currentUser";
 
     private final ChatService chatService;
     private final ConversationService conversationService;
+    private final MarkdownService markdownService;
 
-    public ChatController(ChatService chatService, ConversationService conversationService) {
+    public ChatController(ChatService chatService, ConversationService conversationService, MarkdownService markdownService) {
         this.chatService = chatService;
         this.conversationService = conversationService;
+        this.markdownService = markdownService;
     }
 
     /**
@@ -114,12 +120,18 @@ public class ChatController {
         String finalSessionId = sessionId;
 
         // 调用流式服务，收集响应内容并保存AI消息
+        // 流式返回markdown片段给前端，前端使用marked.parse()实时渲染
+        // 历史记录中同时保存HTML版本和原始markdown
         return chatService.chatStreamWithContext(request.getMessage(), historyMessages)
                 .doOnNext(fullResponse::append)
                 .doOnComplete(() -> {
-                    // 流式完成后，保存完整的AI响应到Redis
-                    conversationService.addMessage(finalSessionId, MessageDTO.assistantMessage(fullResponse.toString()));
+                    // 流式完成后，保存 markdown 原文到历史记录
+                    // content: markdown原文（前端用marked.parse渲染显示）
+                    // originalContent: 保持与content一致，用于AI上下文
+                    conversationService.addMessage(finalSessionId, MessageDTO.assistantMessage(fullResponse.toString(), fullResponse.toString()));
+                    log.info("AI响应已保存，Markdown长度: {}", fullResponse.length());
                 })
+                // 流式返回markdown原文给前端，前端使用marked.parse()实时渲染
                 .map(chunk -> "data:" + chunk + "\n\n")
                 .concatWith(Flux.just("data:[DONE]\n\n"))
                 .concatWith(Flux.just("data:{\"sessionId\":\"" + finalSessionId + "\"}\n\n"))

@@ -32,6 +32,7 @@ public class ChatService {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final MarkdownService markdownService;
 
     @Value("${spring.ai.openai.base-url:http://192.168.40.113:8088}")
     private String baseUrl;
@@ -48,9 +49,10 @@ public class ChatService {
     @Value("${spring.ai.openai.chat.options.max-tokens:1000}")
     private Integer maxTokens;
 
-    public ChatService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper) {
+    public ChatService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper, MarkdownService markdownService) {
         this.chatClient = chatClientBuilder.build();
         this.objectMapper = objectMapper;
+        this.markdownService = markdownService;
     }
 
     /**
@@ -187,9 +189,14 @@ public class ChatService {
         // 构建消息列表：先添加历史消息，再添加当前用户消息
         List<Map<String, String>> messages = new ArrayList<>();
         if (historyMessages != null && !historyMessages.isEmpty()) {
-            // 将历史消息转换为API所需格式
+            // 将历史消息转换为API所需格式，优先使用originalContent（markdown原文）发送给AI
             messages.addAll(historyMessages.stream()
-                    .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
+                    .map(m -> {
+                        String contentToSend = (m.getOriginalContent() != null && !m.getOriginalContent().isEmpty())
+                                ? m.getOriginalContent()
+                                : m.getContent();
+                        return Map.of("role", m.getRole(), "content", contentToSend);
+                    })
                     .collect(Collectors.toList()));
         }
         // 添加当前用户消息

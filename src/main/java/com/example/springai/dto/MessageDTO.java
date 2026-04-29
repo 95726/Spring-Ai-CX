@@ -21,9 +21,14 @@ public class MessageDTO implements Serializable {
     private String role;
 
     /**
-     * 消息内容
+     * 消息内容（用于前端显示，可能是HTML格式）
      */
     private String content;
+
+    /**
+     * 原始内容（用于AI上下文，保持Markdown格式）
+     */
+    private String originalContent;
 
     /**
      * 消息时间戳（毫秒）
@@ -50,6 +55,21 @@ public class MessageDTO implements Serializable {
     }
 
     /**
+     * 全构造函数（包含原始内容）
+     *
+     * @param role      消息角色
+     * @param content   消息内容（可能是HTML格式）
+     * @param originalContent 原始内容（Markdown格式）
+     * @param timestamp 消息时间戳
+     */
+    public MessageDTO(String role, String content, String originalContent, Long timestamp) {
+        this.role = role;
+        this.content = content;
+        this.originalContent = originalContent;
+        this.timestamp = timestamp;
+    }
+
+    /**
      * 创建用户消息的静态工厂方法
      *
      * 自动设置角色为"user"，时间戳为当前时间。
@@ -71,6 +91,19 @@ public class MessageDTO implements Serializable {
      */
     public static MessageDTO assistantMessage(String content) {
         return new MessageDTO("assistant", content, System.currentTimeMillis());
+    }
+
+    /**
+     * 创建助手消息的静态工厂方法（包含原始内容）
+     *
+     * 自动设置角色为"assistant"，时间戳为当前时间。
+     *
+     * @param content 消息内容（可能是HTML格式）
+     * @param originalContent 原始内容（Markdown格式）
+     * @return 助手消息对象
+     */
+    public static MessageDTO assistantMessage(String content, String originalContent) {
+        return new MessageDTO("assistant", content, originalContent, System.currentTimeMillis());
     }
 
     /**
@@ -107,6 +140,24 @@ public class MessageDTO implements Serializable {
      */
     public void setContent(String content) {
         this.content = content;
+    }
+
+    /**
+     * 获取原始内容
+     *
+     * @return 原始内容（Markdown格式）
+     */
+    public String getOriginalContent() {
+        return originalContent;
+    }
+
+    /**
+     * 设置原始内容
+     *
+     * @param originalContent 原始内容（Markdown格式）
+     */
+    public void setOriginalContent(String originalContent) {
+        this.originalContent = originalContent;
     }
 
     /**

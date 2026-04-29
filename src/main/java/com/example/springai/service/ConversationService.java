@@ -296,11 +296,14 @@ public class ConversationService {
             convInfo.put("lastActiveAt", lastActiveAt);
             convInfo.put("messageCount", messageCount);
 
-            // 获取最后一条消息作为预览（最多50字符）
+            // 获取最后一条消息作为预览（最多50字符），优先使用originalContent（markdown原文）
             List<MessageDTO> messages = getMessages(sessionId);
             if (!messages.isEmpty()) {
-                String lastContent = messages.get(messages.size() - 1).getContent();
-                String preview = lastContent.length() > 50 ? lastContent.substring(0, 50) + "..." : lastContent;
+                MessageDTO lastMessage = messages.get(messages.size() - 1);
+                String contentToPreview = (lastMessage.getOriginalContent() != null && !lastMessage.getOriginalContent().isEmpty())
+                        ? lastMessage.getOriginalContent()
+                        : lastMessage.getContent();
+                String preview = contentToPreview.length() > 50 ? contentToPreview.substring(0, 50) + "..." : contentToPreview;
                 convInfo.put("preview", preview);
             }
 
