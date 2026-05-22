@@ -138,12 +138,38 @@
             border-bottom-right-radius: 4px;
         }
 
-        .message-wrapper.assistant .message-bubble {
-            background: white;
-            color: #333;
+        .chat-messages .message-wrapper.assistant .message-bubble {
+            background: white !important;
+            color: #333 !important;
             border-bottom-left-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 14px !important;
+            line-height: 1.6 !important;
         }
+
+        .message-bubble > *:first-child {
+            margin-top: 0;
+        }
+
+        .message-bubble > *:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-bubble h1,
+        .message-bubble h2,
+        .message-bubble h3,
+        .message-bubble h4,
+        .message-bubble h5,
+        .message-bubble h6 {
+            margin: 12px 0 8px 0 !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            line-height: 1.4 !important;
+        }
+
+        .message-bubble h1 { font-size: 16px !important; }
+        .message-bubble h2 { font-size: 15px !important; }
+        .message-bubble h3 { font-size: 14px !important; }
 
         .message-bubble pre {
             background: #f5f5f5;
@@ -153,11 +179,12 @@
             margin: 8px 0;
             white-space: pre-wrap;
             word-break: break-all;
+            font-size: 13px !important;
         }
 
         .message-bubble code {
             font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
+            font-size: 13px !important;
             word-break: break-word;
         }
 
@@ -182,17 +209,18 @@
         .message-bubble li {
             margin: 4px 0;
             word-break: break-word;
-        }
-
-        .message-bubble h1,
-        .message-bubble h2,
-        .message-bubble h3,
-        .message-bubble h4 {
-            margin: 12px 0 8px 0;
+            font-size: 14px !important;
         }
 
         .message-bubble p {
             margin: 8px 0;
+            font-size: 14px !important;
+            line-height: 1.6;
+        }
+
+        .message-bubble a {
+            color: #667eea;
+            word-break: break-all;
         }
 
         .message-bubble table {
@@ -451,7 +479,38 @@
         function safeMarked(content) {
             if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
                 try {
-                    return marked.parse(content);
+                    let html = marked.parse(content);
+                    // 用 DOMParser 解析并清理所有内联样式
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const body = doc.body;
+
+                    // 递归移除所有内联样式并设置统一的字体大小
+                    function cleanElement(element) {
+                        // 移除 style 属性
+                        element.removeAttribute('style');
+                        // 设置统一的字体样式
+                        element.style.fontSize = '14px';
+                        element.style.fontWeight = 'normal';
+                        element.style.margin = '0';
+                        element.style.padding = '0';
+                        // h1-h6 需要特殊处理大小
+                        if (element.tagName.match(/^H[1-6]$/)) {
+                            const level = parseInt(element.tagName[1]);
+                            const sizes = {1: '18px', 2: '16px', 3: '15px', 4: '14px', 5: '13px', 6: '12px'};
+                            element.style.fontSize = sizes[level] || '14px';
+                            element.style.fontWeight = '600';
+                        }
+                        for (let child of Array.from(element.children)) {
+                            cleanElement(child);
+                        }
+                    }
+
+                    for (let el of Array.from(body.children)) {
+                        cleanElement(el);
+                    }
+
+                    return body.innerHTML;
                 } catch (e) {
                     console.warn('Markdown解析失败:', e);
                     return escapeHtml(content);
@@ -572,7 +631,7 @@
             }
         }
 
-        function addMessage(role, content) {
+        function addMessage(role, content, isFinal) {
             const hint = document.getElementById('emptyHint');
             if (hint) {
                 hint.style.display = 'none';
@@ -580,15 +639,17 @@
 
             const wrapper = document.createElement('div');
             wrapper.className = 'message-wrapper ' + role;
+            const renderedContent = (role === 'user' || isFinal) ? content : escapeHtml(content);
             wrapper.innerHTML = `
                 <div class="message-avatar">${role === 'user' ? '👤' : '🤖'}</div>
                 <div class="message-content">
-                    <div class="message-bubble">${role === 'user' ? escapeHtml(content) : content}</div>
+                    <div class="message-bubble">${renderedContent}</div>
                     <div class="message-time">${formatTime(new Date())}</div>
                 </div>
             `;
             chatMessages.appendChild(wrapper);
             scrollToBottom();
+            return wrapper.querySelector('.message-bubble');
         }
 
         function parseStreamData(data) {
@@ -664,6 +725,20 @@
                             streamCompleted = true;
                             setStatus('完成', 'idle');
                             setButtonsDisabled(false);
+                            if (assistantBubbleEl) {
+                                // 流式响应完成，重新渲染 markdown 格式
+                                assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                scrollToBottom();
+                                // 多次刷新确保 markdown 渲染正确
+                                setTimeout(() => {
+                                    assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                    scrollToBottom();
+                                }, 100);
+                                setTimeout(() => {
+                                    assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                    scrollToBottom();
+                                }, 300);
+                            }
                             return;
                         }
 
@@ -680,6 +755,20 @@
                                 streamCompleted = true;
                                 setStatus('完成', 'idle');
                                 setButtonsDisabled(false);
+                                if (assistantBubbleEl) {
+                                    // 流式响应完成，重新渲染 markdown 格式
+                                    assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                    scrollToBottom();
+                                    // 多次刷新确保 markdown 渲染正确
+                                    setTimeout(() => {
+                                        assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                        scrollToBottom();
+                                    }, 100);
+                                    setTimeout(() => {
+                                        assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                        scrollToBottom();
+                                    }, 300);
+                                }
                                 continue;
                             }
 
@@ -698,7 +787,7 @@
                             } catch (e) {
                                 fullResponse += data;
                                 if (assistantBubbleEl) {
-                                    assistantBubbleEl.innerHTML = safeMarked(fullResponse);
+                                    assistantBubbleEl.innerHTML = escapeHtml(fullResponse);
                                     scrollToBottom();
                                 }
                             }

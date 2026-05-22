@@ -31,6 +31,12 @@ public class ChatController {
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
     private static final String SESSION_USER_KEY = "currentUser";
 
+    /** 最大上下文轮数：保留最近10轮对话（10条用户消息 + 10条助手消息） */
+    private static final int MAX_CONTEXT_ROUNDS = 10;
+
+    /** 最大上下文消息条数 */
+    private static final int MAX_CONTEXT_MESSAGES = MAX_CONTEXT_ROUNDS * 2;
+
     private final ChatService chatService;
     private final ConversationService conversationService;
     private final MarkdownService markdownService;
@@ -112,8 +118,8 @@ public class ChatController {
         // 保存用户消息到Redis
         conversationService.addMessage(sessionId, MessageDTO.userMessage(request.getMessage()));
 
-        // 获取历史消息用于构建上下文
-        List<MessageDTO> historyMessages = conversationService.getMessages(sessionId);
+        // 获取最近10轮历史消息用于构建上下文，避免超出模型token限制
+        List<MessageDTO> historyMessages = conversationService.getMessages(sessionId, MAX_CONTEXT_MESSAGES);
 
         // 用于收集完整的AI响应
         StringBuilder fullResponse = new StringBuilder();

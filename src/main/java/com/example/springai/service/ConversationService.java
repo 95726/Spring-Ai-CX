@@ -57,6 +57,15 @@ public class ConversationService {
     }
 
     /**
+     * 获取Redis模板
+     *
+     * @return StringRedisTemplate
+     */
+    public StringRedisTemplate getRedisTemplate() {
+        return redisTemplate;
+    }
+
+    /**
      * 创建新会话并绑定用户
      *
      * 生成唯一的会话ID（格式：conv-{uuid}），并初始化会话元数据存储到Redis。
@@ -141,12 +150,39 @@ public class ConversationService {
      * @return 消息列表，如果会话不存在或无消息则返回空列表
      */
     public List<MessageDTO> getMessages(String sessionId) {
+        return getMessages(sessionId, -1);
+    }
+
+    /**
+     * 获取会话历史消息（带数量限制）
+     *
+     * 从Redis List中获取指定会话的最近N条历史消息，反序列化后返回消息列表。
+     * 用于控制发送给AI模型的上下文长度，避免超出token限制。
+     *
+     * @param sessionId 会话ID
+     * @param limit     最大消息条数，-1表示不限制
+     * @return 消息列表，如果会话不存在或无消息则返回空列表
+     */
+    public List<MessageDTO> getMessages(String sessionId, int limit) {
         if (sessionId == null || sessionId.isEmpty()) {
             return Collections.emptyList();
         }
 
         String messagesKey = getMessagesKey(sessionId);
-        List<String> messageJsonList = redisTemplate.opsForList().range(messagesKey, 0, -1);
+
+        // 获取消息总数
+        Long totalSize = redisTemplate.opsForList().size(messagesKey);
+        if (totalSize == null || totalSize == 0) {
+            return Collections.emptyList();
+        }
+
+        // 计算起始索引，只取最近的limit条消息
+        long start = 0;
+        if (limit > 0 && totalSize > limit) {
+            start = totalSize - limit;
+        }
+
+        List<String> messageJsonList = redisTemplate.opsForList().range(messagesKey, start, -1);
 
         if (messageJsonList == null || messageJsonList.isEmpty()) {
             return Collections.emptyList();
@@ -216,9 +252,7 @@ public class ConversationService {
     }
 
     /**
-     * 检查会话是否存在
-     *
-     * 通过检查元数据Key是否存在来判断会话是否有效。
+     * 检查会话是否存在（仅检查元数据Key）
      *
      * @param sessionId 会话ID
      * @return true如果会话存在，false如果不存在

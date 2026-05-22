@@ -63,8 +63,8 @@ public class ConversationController {
         // 验证会话是否属于该用户
         if (!conversationService.sessionExistsAndBelongsToUser(sessionId, currentUser.getId())) {
             Map<String, Object> response = new HashMap<>();
-            response.put("error", "会话不存在或不属于当前用户");
-            return ResponseEntity.status(403).body(response);
+            response.put("error", "会话不存在");
+            return ResponseEntity.status(404).body(response);
         }
 
         // 获取消息列表
@@ -142,9 +142,20 @@ public class ConversationController {
 
         // 验证会话是否属于该用户
         if (!conversationService.sessionExistsAndBelongsToUser(sessionId, currentUser.getId())) {
+            // 检查会话是否真的存在（可能是数据过期被Redis清理了）
+            if (conversationService.sessionExists(sessionId)) {
+                // 会话存在但不属于该用户
+                Map<String, Object> response = new HashMap<>();
+                response.put("error", "会话不存在");
+                return ResponseEntity.status(404).body(response);
+            }
+            // 会话不存在（已过期），清理用户列表中的残留引用
+            String userConversationsKey = "user:conversations:" + currentUser.getId();
+            conversationService.getRedisTemplate().opsForSet().remove(userConversationsKey, sessionId);
             Map<String, Object> response = new HashMap<>();
-            response.put("error", "会话不存在或不属于当前用户");
-            return ResponseEntity.status(403).body(response);
+            response.put("success", true);
+            response.put("message", "会话已删除");
+            return ResponseEntity.ok(response);
         }
 
         boolean success = conversationService.deleteSession(sessionId, currentUser.getId());
