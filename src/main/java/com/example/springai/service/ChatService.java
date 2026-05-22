@@ -40,7 +40,7 @@ public class ChatService {
     @Value("${spring.ai.openai.api-key:}")
     private String apiKey;
 
-    @Value("${spring.ai.openai.chat.options.model:MiniMax-M2.7-highspeed}")
+    @Value("${spring.ai.openai.chat.options.model:mimo-v2.5-pro}")
     private String model;
 
     @Value("${spring.ai.openai.chat.options.temperature:0.7}")
@@ -48,6 +48,9 @@ public class ChatService {
 
     @Value("${spring.ai.openai.chat.options.max-tokens:1000}")
     private Integer maxTokens;
+
+    @Value("${spring.ai.chat.system-prompt:你是一个有帮助的AI助手，请简洁明了地回答问题，避免冗余内容。}")
+    private String systemPrompt;
 
     public ChatService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper, MarkdownService markdownService) {
         this.chatClient = chatClientBuilder.build();
@@ -89,6 +92,36 @@ public class ChatService {
                 .user(message)
                 .call()
                 .content();
+    }
+
+    /**
+     * 对历史消息生成摘要
+     *
+     * 将消息列表格式化为文本，调用AI模型生成简洁的对话摘要。
+     * 摘要用于在上下文窗口有限时保留早期对话的关键信息。
+     *
+     * @param messages 需要摘要的历史消息列表
+     * @return AI生成的摘要文本
+     */
+    public String summarizeMessages(List<MessageDTO> messages) {
+        // 格式化消息为文本
+        StringBuilder conversationText = new StringBuilder();
+        for (MessageDTO msg : messages) {
+            String roleLabel = "user".equals(msg.getRole()) ? "用户" : "助手";
+            String content = (msg.getOriginalContent() != null && !msg.getOriginalContent().isEmpty())
+                    ? msg.getOriginalContent()
+                    : msg.getContent();
+            conversationText.append(roleLabel).append(": ").append(content).append("\n");
+        }
+
+        // 构建摘要prompt
+        String prompt = "请将以下对话历史总结为一段简洁的摘要（200字以内），保留关键信息、用户需求和重要结论：\n\n"
+                + conversationText.toString();
+
+        log.info("正在生成对话摘要，消息数: {}", messages.size());
+        String summary = chatSimple(prompt);
+        log.info("对话摘要生成完成，摘要长度: {}", summary.length());
+        return summary;
     }
 
     /**
@@ -173,12 +206,14 @@ public class ChatService {
      *
      * 构建包含历史消息的完整请求体，发送给AI模型并实时解析流式响应。
      * 历史消息用于保持多轮对话的上下文连贯性。
+     * 如果提供摘要，会将其作为system消息插入到消息列表最前面。
      *
      * @param message         用户输入的聊天消息
      * @param historyMessages 历史消息列表，包含之前的用户和助手消息
+     * @param summary         对话摘要，可为null
      * @return Flux<String> 流式响应，每个元素代表一个文本片段
      */
-    public Flux<String> chatStreamWithContext(String message, List<MessageDTO> historyMessages) {
+    public Flux<String> chatStreamWithContext(String message, List<MessageDTO> historyMessages, String summary) {
         // 构建请求体
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", model);
@@ -186,8 +221,19 @@ public class ChatService {
         requestBody.put("temperature", temperature);
         requestBody.put("max_tokens", maxTokens);
 
-        // 构建消息列表：先添加历史消息，再添加当前用户消息
+        // 构建消息列表：先添加系统提示词，再添加摘要，再添加历史消息，最后添加当前用户消息
         List<Map<String, String>> messages = new ArrayList<>();
+
+        // 添加系统提示词，引导模型控制回复长度
+        if (systemPrompt != null && !systemPrompt.isEmpty()) {
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+        }
+
+        // 如果有摘要，作为system消息插入最前面
+        if (summary != null && !summary.isEmpty()) {
+            messages.add(Map.of("role", "system", "content", "以下是之前对话的摘要：\n" + summary));
+        }
+
         if (historyMessages != null && !historyMessages.isEmpty()) {
             // 将历史消息转换为API所需格式，优先使用originalContent（markdown原文）发送给AI
             messages.addAll(historyMessages.stream()

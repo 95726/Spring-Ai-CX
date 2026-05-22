@@ -16,6 +16,7 @@ import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 聊天控制器
@@ -118,7 +119,25 @@ public class ChatController {
         // 保存用户消息到Redis
         conversationService.addMessage(sessionId, MessageDTO.userMessage(request.getMessage()));
 
-        // 获取最近10轮历史消息用于构建上下文，避免超出模型token限制
+        // 获取当前消息总数，检查是否需要生成摘要
+        Map<String, String> meta = conversationService.getMetaData(sessionId);
+        int messageCount = Integer.parseInt(meta.getOrDefault("messageCount", "0"));
+        int lastSummarizedCount = conversationService.getLastSummarizedCount(sessionId);
+
+        String summary = null;
+        // 消息总数超过10条且距上次摘要已积累10条新消息时，重新生成摘要
+        if (messageCount > MAX_CONTEXT_MESSAGES && (messageCount - lastSummarizedCount) >= MAX_CONTEXT_MESSAGES) {
+            // 获取全部消息用于生成摘要
+            List<MessageDTO> allMessages = conversationService.getMessages(sessionId);
+            summary = chatService.summarizeMessages(allMessages);
+            conversationService.saveSummary(sessionId, summary, messageCount);
+            log.info("已生成对话摘要, sessionId={}, 消息总数={}", sessionId, messageCount);
+        } else {
+            // 读取已有摘要
+            summary = conversationService.getSummary(sessionId);
+        }
+
+        // 获取最近历史消息用于构建上下文
         List<MessageDTO> historyMessages = conversationService.getMessages(sessionId, MAX_CONTEXT_MESSAGES);
 
         // 用于收集完整的AI响应
@@ -128,7 +147,7 @@ public class ChatController {
         // 调用流式服务，收集响应内容并保存AI消息
         // 流式返回markdown片段给前端，前端使用marked.parse()实时渲染
         // 历史记录中同时保存HTML版本和原始markdown
-        return chatService.chatStreamWithContext(request.getMessage(), historyMessages)
+        return chatService.chatStreamWithContext(request.getMessage(), historyMessages, summary)
                 .doOnNext(fullResponse::append)
                 .doOnComplete(() -> {
                     // 流式完成后，保存 markdown 原文到历史记录

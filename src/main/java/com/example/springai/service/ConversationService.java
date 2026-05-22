@@ -203,6 +203,55 @@ public class ConversationService {
     }
 
     /**
+     * 获取会话摘要
+     *
+     * 从Redis元数据中获取会话的摘要文本，摘要由AI模型对早期对话消息生成。
+     *
+     * @param sessionId 会话ID
+     * @return 摘要文本，如果不存在则返回null
+     */
+    public String getSummary(String sessionId) {
+        Map<String, String> meta = getMetaData(sessionId);
+        String summary = meta.get("summary");
+        return (summary != null && !summary.isEmpty()) ? summary : null;
+    }
+
+    /**
+     * 保存会话摘要
+     *
+     * 将AI生成的摘要文本存入会话元数据，并记录当前消息总数作为摘要基准点。
+     *
+     * @param sessionId    会话ID
+     * @param summary      摘要文本
+     * @param messageCount 生成摘要时的消息总数
+     */
+    public void saveSummary(String sessionId, String summary, int messageCount) {
+        String metaKey = getMetaKey(sessionId);
+        redisTemplate.opsForHash().put(metaKey, "summary", summary);
+        redisTemplate.opsForHash().put(metaKey, "lastSummarizedCount", String.valueOf(messageCount));
+        log.info("会话摘要已保存, sessionId={}, 消息总数={}, 摘要长度={}", sessionId, messageCount, summary.length());
+    }
+
+    /**
+     * 获取上次摘要时的消息总数
+     *
+     * @param sessionId 会话ID
+     * @return 上次摘要时的消息总数，如果未生成过摘要则返回0
+     */
+    public int getLastSummarizedCount(String sessionId) {
+        Map<String, String> meta = getMetaData(sessionId);
+        String count = meta.get("lastSummarizedCount");
+        if (count != null && !count.isEmpty()) {
+            try {
+                return Integer.parseInt(count);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    /**
      * 获取会话元数据
      *
      * 从Redis Hash中获取会话的元数据信息，包括创建时间、最后活跃时间、消息计数和用户ID。
