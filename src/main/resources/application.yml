@@ -47,9 +47,14 @@ spring:
       base-url: http://192.168.40.113:8088
       chat:
         options:
-          model: mimo-v2.5-pro
+          model: qwen3.6-plus
           temperature: 0.7
           max-tokens: 4096
 
     chat:
       system-prompt: "你是一个有帮助的AI助手。控制回复篇幅，避免冗余和重复内容。"
+
+weather:
+  api:
+    key: ${WEATHER_API_KEY:fb796f87572e4a849ce3b6a85bc3b913}
+    base-url: https://pw6yw2tdww.re.qweatherapi.com
