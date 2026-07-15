@@ -43,11 +43,11 @@ spring:
 
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:a1FwjxI7aDMMlnUU}
-      base-url: http://wg.cxcommon.com/wh-yyg-mps-anth
+      api-key: ${OPENAI_API_KEY:sk-X91RTOfvynfZLCiQ1J2QL8jqOmvQ23nPAKtB7Dsucv8fa7Yu}
+      base-url: http://192.168.40.113:8088
       chat:
         options:
-          model: qwen3.7-plus
+          model: mimo-v2.5-pro
           temperature: 0.7
           max-tokens: 4096
 
