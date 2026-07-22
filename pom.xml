@@ -92,12 +92,25 @@
             <version>42.7.4</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- Hibernate Vector support for PostgreSQL pgvector -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-vector</artifactId>
+            <version>6.6.8.Final</version>
+        </dependency>
 
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>3.5.5</version>
+        </dependency>
+
+        <!-- JSqlParser（覆盖 MyBatis-Plus 带入的旧版本，兼容 Spring Data JPA native query） -->
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.9</version>
         </dependency>
 
         <!-- Flexmark Markdown (Markdown转HTML) -->

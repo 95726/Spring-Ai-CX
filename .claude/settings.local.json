@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean *)",
+      "Bash(mvn compile *)",
+      "Bash(/c/Users/Administrator/.m2/wrapper/dists/apache-maven-3.9.11-bin/6mqf5t809d9geo83kj4ttckcbc/apache-maven-3.9.11/bin/mvn compile *)",
+      "Bash(curl *)",
+      "Bash(where mvn *)",
+      "WebFetch(domain:help.aliyun.com)",
+      "WebSearch"
+    ]
+  }
+}

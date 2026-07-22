@@ -1,26 +1,17 @@
 spring:
   datasource:
-    url: jdbc:postgresql://8.135.48.81:5432/postgres
-    username: postgres
-    password: cx19971020@
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
-      idle-timeout: 30000
-      max-lifetime: 1800000
-      connection-timeout: 30000
+    postgresql:
+      url: jdbc:postgresql://8.135.48.81:5432/postgres
+      username: postgres
+      password: cx19971020@
+      driver-class-name: org.postgresql.Driver
+      hikari:
+        minimum-idle: 5
+        maximum-pool-size: 20
+        idle-timeout: 30000
+        max-lifetime: 1800000
+        connection-timeout: 30000
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-
-  # 保持与主配置一致，避免启动失败
   data:
     redis:
       host: 8.135.48.81

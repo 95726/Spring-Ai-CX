@@ -2,7 +2,11 @@ package com.example.springai;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -16,21 +20,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * PostgreSQL 连接测试。
- * 通过 Spring Boot 自动配置注入 DataSource，使用 test profile 连接 PostgreSQL。
+ *
+ * 测试显式使用 PostgreSQL 数据源，避免被 MySQL 主数据源（@Primary）覆盖。
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(PostgreSQLConnectionTest.TestJdbcConfiguration.class)
 class PostgreSQLConnectionTest {
 
     @Autowired
+    @Qualifier("pgDataSource")
     private DataSource dataSource;
 
     @Autowired
+    @Qualifier("pgJdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
-    /**
-     * 测试数据源是否成功注入、连接是否可用
-     */
     @Test
     void testDataSourceConnection() throws Exception {
         assertNotNull(dataSource, "DataSource 不应为 null");
@@ -46,27 +51,30 @@ class PostgreSQLConnectionTest {
         }
     }
 
-    /**
-     * 测试通过 JdbcTemplate 执行 SQL 查询
-     */
     @Test
     void testJdbcTemplateQuery() {
-        // 查询 PostgreSQL 版本
         String version = jdbcTemplate.queryForObject("SELECT version()", String.class);
         assertNotNull(version, "version() 不应返回 null");
         assertTrue(version.contains("PostgreSQL"), "结果应包含 PostgreSQL 标识");
         System.out.println("version(): " + version);
     }
 
-    /**
-     * 测试列出 public schema 下的用户表
-     */
     @Test
     void testListTables() {
         List<Map<String, Object>> tables = jdbcTemplate.queryForList(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+                "SELECT table_name FROM information_schema.tables "
+                        + "WHERE table_schema = 'public' ORDER BY table_name"
         );
         System.out.println("public schema 下共 " + tables.size() + " 张表:");
         tables.forEach(row -> System.out.println("  " + row.get("table_name")));
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class TestJdbcConfiguration {
+
+        @Bean(name = "pgJdbcTemplate")
+        JdbcTemplate pgJdbcTemplate(@Qualifier("pgDataSource") DataSource dataSource) {
+            return new JdbcTemplate(dataSource);
+        }
     }
 }
